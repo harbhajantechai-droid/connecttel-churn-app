@@ -3,15 +3,17 @@ from pydantic import BaseModel
 import joblib
 import numpy as np
 import pandas as pd
+import os
 
 # ── Load Model Artifacts ──
-model         = joblib.load('model/churn_model.pkl')
-scaler        = joblib.load('model/scaler.pkl')
-feature_names = joblib.load('model/feature_names.pkl')
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+model         = joblib.load(os.path.join(BASE_DIR, 'model', 'churn_model.pkl'))
+scaler        = joblib.load(os.path.join(BASE_DIR, 'model', 'scaler.pkl'))
+feature_names = joblib.load(os.path.join(BASE_DIR, 'model', 'feature_names.pkl'))
 
 app = FastAPI(title="ConnectTel Churn Prediction API")
 
-# ── Input Schema ──
 class CustomerData(BaseModel):
     tenure: int
     MonthlyCharges: float
@@ -23,34 +25,27 @@ class CustomerData(BaseModel):
     PaperlessBilling: int
     SeniorCitizen: int
 
-# ── Health Check ──
 @app.get("/health")
 def health():
     return {"status": "OK", "model": "ConnectTel Churn Predictor"}
 
-# ── Predict Endpoint ──
 @app.post("/predict")
 def predict(data: CustomerData):
-    # Create input dataframe
     input_dict = data.dict()
     input_df = pd.DataFrame([input_dict])
 
-    # Add missing features with 0
     for col in feature_names:
         if col not in input_df.columns:
             input_df[col] = 0
 
-    # Reorder columns
     input_df = input_df[feature_names]
 
-    # Scale numerical features
     num_cols = ['tenure', 'MonthlyCharges', 'TotalCharges',
                 'AvgMonthlySpend', 'ChargesRatio']
     for col in num_cols:
         if col not in input_df.columns:
             input_df[col] = 0
 
-    # Predict
     proba = model.predict_proba(input_df)[0][1]
     prediction = int(proba >= 0.5)
 
