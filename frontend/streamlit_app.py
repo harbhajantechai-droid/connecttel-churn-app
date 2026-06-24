@@ -50,11 +50,11 @@ if st.button("🔍 Predict Churn", use_container_width=True):
         "TotalCharges": TotalCharges
     }
     try:
-       response = requests.post("https://connecttel-churn-app-1.onrender.com/predict", json=payload)
+        response = requests.post("https://connecttel-churn-app-1.onrender.com/predict", json=payload)
         result = response.json()
         if result["churn_label"] == "Yes":
             st.error(f"⚠️ Customer likely to CHURN! Probability: {result['churn_probability']*100:.1f}%")
         else:
             st.success(f"✅ Customer likely to STAY! Probability: {(1-result['churn_probability'])*100:.1f}%")
-    except:
-        st.error("❌ Could not connect to API. Make sure backend is running.")
+    except Exception as e:
+        st.error(f"❌ Error: {str(e)}")
