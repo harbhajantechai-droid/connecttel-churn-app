@@ -2,56 +2,59 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import joblib
 import numpy as np
-import pandas as pd
 import os
 
-# ── Load Model Artifacts ──
+app = FastAPI(title="ConnectTel Churn Predictor")
+
+# Load model files
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-model         = joblib.load(os.path.join(BASE_DIR, 'model', 'churn_model.pkl'))
-scaler        = joblib.load(os.path.join(BASE_DIR, 'model', 'scaler.pkl'))
-feature_names = joblib.load(os.path.join(BASE_DIR, 'model', 'feature_names.pkl'))
-
-app = FastAPI(title="ConnectTel Churn Prediction API")
+model = joblib.load(os.path.join(BASE_DIR, "model/churn_model.pkl"))
+preprocessor = joblib.load(os.path.join(BASE_DIR, "model/preprocessor.pkl"))
+feature_names = joblib.load(os.path.join(BASE_DIR, "model/feature_names.pkl"))
 
 class CustomerData(BaseModel):
+    gender: str
+    SeniorCitizen: int
+    Partner: str
+    Dependents: str
     tenure: int
+    PhoneService: str
+    MultipleLines: str
+    InternetService: str
+    OnlineSecurity: str
+    OnlineBackup: str
+    DeviceProtection: str
+    TechSupport: str
+    StreamingTV: str
+    StreamingMovies: str
+    Contract: str
+    PaperlessBilling: str
+    PaymentMethod: str
     MonthlyCharges: float
     TotalCharges: float
-    gender: int
-    Partner: int
-    Dependents: int
-    PhoneService: int
-    PaperlessBilling: int
-    SeniorCitizen: int
 
 @app.get("/health")
 def health():
-    return {"status": "OK", "model": "ConnectTel Churn Predictor"}
+    return {"status": "ok"}
 
 @app.post("/predict")
 def predict(data: CustomerData):
+    import pandas as pd
     input_dict = data.dict()
-    input_df = pd.DataFrame([input_dict])
-
-    for col in feature_names:
-        if col not in input_df.columns:
-            input_df[col] = 0
-
-    input_df = input_df[feature_names]
-
-    num_cols = ['tenure', 'MonthlyCharges', 'TotalCharges',
-                'AvgMonthlySpend', 'ChargesRatio']
-    for col in num_cols:
-        if col not in input_df.columns:
-            input_df[col] = 0
-
-    proba = model.predict_proba(input_df)[0][1]
-    prediction = int(proba >= 0.5)
-
+    df = pd.DataFrame([input_dict])
+    
+    # Encode using saved encoders
+    for col in df.select_dtypes('object').columns:
+        if col in preprocessor:
+            le = preprocessor[col]
+            df[col] = le.transform(df[col])
+    
+    df = df[feature_names]
+    prediction = model.predict(df)[0]
+    probability = model.predict_proba(df)[0][1]
+    
     return {
-        "churn_prediction": prediction,
-        "churn_probability": round(float(proba), 4),
-        "risk_level": "High" if proba >= 0.7 else "Medium" if proba >= 0.4 else "Low",
-        "message": "Customer likely to churn!" if prediction == 1 else "Customer likely to stay!"
+        "churn_prediction": int(prediction),
+        "churn_label": "Yes" if prediction == 1 else "No",
+        "churn_probability": round(float(probability), 3)
     }
