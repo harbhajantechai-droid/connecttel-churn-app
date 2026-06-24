@@ -50,7 +50,7 @@ if st.button("🔍 Predict Churn", use_container_width=True):
         "TotalCharges": TotalCharges
     }
     try:
-        response = requests.post("http://localhost:8000/predict", json=payload)
+       response = requests.post("https://connecttel-churn-app-1.onrender.com/predict", json=payload)
         result = response.json()
         if result["churn_label"] == "Yes":
             st.error(f"⚠️ Customer likely to CHURN! Probability: {result['churn_probability']*100:.1f}%")
