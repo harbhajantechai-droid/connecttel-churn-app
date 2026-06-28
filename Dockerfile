@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "frontend/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 & sleep 3 && streamlit run frontend/streamlit_app.py --server.port 8501 --server.address 0.0.0.0
